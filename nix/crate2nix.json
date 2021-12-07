@@ -1,0 +1,10 @@
+{
+  "sources": {
+    "cargo-hf2": {
+      "type": "CratesIo",
+      "name": "cargo-hf2",
+      "version": "0.3.1",
+      "sha256": "13sm9zgyl9dqfqnkiphg6kjxxybmmy5ccmdd1xkcf7c8lnc0rqhw"
+    }
+  }
+}

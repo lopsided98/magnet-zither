@@ -1,0 +1,28 @@
+[package]
+name = "magnet-zither"
+version = "0.1.0"
+authors = ["Ben Wolsieffer <benwolsieffer@gmail.com>"]
+edition = "2021"
+
+[dependencies]
+embassy = { version = "0.1.0", path = "../embassy/embassy" }
+embassy-traits = { version = "0.1.0", path = "../embassy/embassy-traits" }
+embassy-atsamd = { version = "0.1.0", path = "../embassy/embassy-atsamd", features = ["samd21e", "time-driver-rtc"] }
+
+atsamd-hal = "0.13.0"
+cortex-m = "0.7.3"
+cortex-m-rt = "0.7.0"
+embedded-hal = "0.2.6"
+libm = "0.2.1"
+panic-halt = "0.2.0"
+#samd-dma = { path = "../../samd-dma", features = ["samd21e"] }
+trinket_m0 = "0.11.0"
+
+[patch.crates-io]
+atsamd-hal = { path = "../../atsamd/hal" }
+trinket_m0 = { path = "../../atsamd/boards/trinket_m0" }
+
+[profile.release]
+# symbols are nice and they don't increase the size on Flash
+debug = true
+
