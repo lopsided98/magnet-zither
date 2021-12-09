@@ -68,8 +68,7 @@ impl $TYPE {
         s.tcc.wave.write(|w| w.wavegen().dsbottom());
 
         s.tcc.ccb()[0].write(|w| unsafe { w.bits(4000u32) });
-
-        s.set_freq(398.hz());
+        s.configure(398.hz(), 255);
 
         // Enable TCC
         s.tcc.ctrla.modify(|_, w| w.enable().set_bit());
@@ -82,17 +81,17 @@ impl $TYPE {
         s
     }
 
-    fn set_freq<F>(&self, freq: F)
-    where
-        F: Into<Hertz>,
-    {
+    pub fn configure(&self, freq: impl Into<Hertz>, amplitude: u8) {
         // Lock buffer
         while self.tcc.syncbusy.read().ctrlb().bit() {}
         self.tcc.ctrlbset.write(|w| w.lupd().set_bit());
         while self.tcc.syncbusy.read().ctrlb().bit() {}
 
-        let period = self.timer_freq.0 / (freq.into().0 * 2);
-        self.tcc.perb().write(|w| unsafe { w.bits(period as u32) });
+        let period = (self.timer_freq.0 / (freq.into().0 * 2)) as u32;
+        let cc = period - period * amplitude as u32 / u8::MAX as u32 / 2;
+
+        self.tcc.perb().write(|w| unsafe { w.bits(period) });
+        self.tcc.ccb()[0].write(|w| unsafe { w.bits(cc) });
 
         // Unlock buffer
         while self.tcc.syncbusy.read().ctrlb().bit() {}
