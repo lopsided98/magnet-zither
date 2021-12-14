@@ -3,8 +3,8 @@ use crate::hal::time::{Hertz, Nanoseconds, U32Ext};
 
 use crate::dac::{Dac, DacDmaTrigger};
 use crate::pac;
-use pac::{PM, TCC0, TCC1, TCC2};
 use core::ops::Deref;
+use pac::{PM, TCC0, TCC1, TCC2};
 use paste::paste;
 use seq_macro::seq;
 

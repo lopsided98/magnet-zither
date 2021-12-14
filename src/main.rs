@@ -14,7 +14,6 @@ mod string;
 
 #[app(device = bsp::pac, dispatchers = [EVSYS, DAC])]
 mod app {
-    use embedded_midi::{MidiMessage, MidiParser};
     use hal::clock::GenericClockController;
     use hal::gpio::v2 as gpio;
     use hal::prelude::*;
@@ -27,6 +26,8 @@ mod app {
     use hal::usb::UsbBus;
     use panic_halt as _;
     use seq_macro::seq;
+    use usbd_midi::data::midi;
+    use usbd_midi::data::usb_midi::midi_packet_reader::MidiPacketBufferReader;
 
     use string::{Controller, DacDriver};
 
@@ -229,9 +230,7 @@ mod app {
     #[local]
     struct Local {
         usb_device: UsbDevice<'static, UsbBus>,
-        uart_rx: uart::Uart<uart::Config<uart::Pads<Sercom0, bsp::UartRx, NoneT>>, uart::Rx>,
-        // red_led: bsp::RedLed,
-        midi: MidiParser,
+        usb_midi: usbd_midi::midi_device::MidiClass<'static, UsbBus>,
     }
 
     #[monotonic(binds = RTC, default = true)]
@@ -268,27 +267,19 @@ mod app {
         ));
         let usb_allocator = cx.local.usb_allocator.as_ref().unwrap();
 
-        let usb_device = UsbDeviceBuilder::new(&usb_allocator, UsbVidPid(0x16c0, 0x27dd))
+        let usb_midi = usbd_midi::midi_device::MidiClass::new(&usb_allocator, 0, 1).unwrap();
+
+        let usb_device = UsbDeviceBuilder::new(&usb_allocator, UsbVidPid(0x16c0, 0x5e4))
             .manufacturer("Ben Wolsieffer")
             .product("Magnet Zither")
             .serial_number("0000")
+            .device_class(usbd_midi::data::usb::constants::USB_AUDIO_CLASS)
+            .device_sub_class(usbd_midi::data::usb::constants::USB_MIDISTREAMING_SUBCLASS)
             .build();
 
         let mut dma = samd_dma::DMAController::init(peripherals.DMAC, cx.local.dma_storage);
         dma.enable();
         dma.enable_priority_level(samd_dma::Priority::Level0);
-
-        let mut uart_rx = {
-            let clock = &clocks.sercom0_core(&gclk0).unwrap();
-            let pads = uart::Pads::default().rx(pins.d0);
-            uart::Config::new(&mut peripherals.PM, peripherals.SERCOM0, pads, clock.freq())
-                .baud(
-                    115200.hz(),
-                    uart::BaudMode::Fractional(uart::Oversampling::Bits16),
-                )
-                .enable()
-        };
-        uart_rx.enable_interrupts(uart::Flags::RXC);
 
         let tcc0_tcc1_clock = clocks.tcc0_tcc1(&gclk0).unwrap();
         let tcc2_tc3_clock = clocks.tcc2_tc3(&gclk0).unwrap();
@@ -333,8 +324,7 @@ mod app {
             Shared { strings },
             Local {
                 usb_device,
-                uart_rx,
-                midi: MidiParser::new(),
+                usb_midi,
             },
             init::Monotonics(rtc),
         )
@@ -354,47 +344,41 @@ mod app {
         });
     }
 
-    fn msg_to_note(msg: &MidiMessage) -> Option<embedded_midi::Note> {
+    fn msg_to_note(msg: &midi::message::Message) -> Option<midi::notes::Note> {
         match msg {
-            MidiMessage::NoteOn(_, note, _) => Some(*note),
-            MidiMessage::NoteOff(_, note, _) => Some(*note),
+            midi::message::Message::NoteOn(_, note, _) => Some(*note),
+            midi::message::Message::NoteOff(_, note, _) => Some(*note),
             _ => None,
         }
     }
 
-    fn note_to_string(note: embedded_midi::Note) -> Option<u8> {
+    fn note_to_string(note: midi::notes::Note) -> Option<u8> {
+        use midi::notes::Note::*;
         match note.into() {
-            67 => Some(0),
-            69 => Some(1),
-            71 => Some(2),
-            72 => Some(3),
-            74 => Some(4),
-            76 => Some(5),
-            77 => Some(6),
-            79 => Some(7),
+            G4 => Some(0),
+            A4 => Some(1),
+            B4 => Some(2),
+            C5 => Some(3),
+            D5 => Some(4),
+            E5 => Some(5),
+            F5 => Some(6),
+            G5 => Some(7),
             _ => None,
         }
     }
 
     #[task(
         shared = [strings],
-        local = [midi],
         capacity = 16
     )]
-    fn handle_midi(mut cx: handle_midi::Context, data: u8) {
-        let msg: MidiMessage = if let Some(msg) = cx.local.midi.parse_byte(data) {
-            msg
-        } else {
-            return;
-        };
-
+    fn handle_midi(mut cx: handle_midi::Context, msg: midi::message::Message) {
         if let Some(i) = msg_to_note(&msg).and_then(note_to_string) {
             string_i_lock!(cx, i, |string: &mut string::ControllerImpl<
                 DacDriver<_>,
             >| {
                 if let Some(t) = match msg {
-                    MidiMessage::NoteOn(_, _, velocity) => string.on(velocity.into()),
-                    MidiMessage::NoteOff(_, _, _velocity) => string.off(127),
+                    midi::message::Message::NoteOn(_, _, velocity) => string.on(velocity.into()),
+                    midi::message::Message::NoteOff(_, _, _velocity) => string.off(127),
                     _ => None,
                 } {
                     update_string::spawn_at(t, i).ok();
@@ -441,19 +425,23 @@ mod app {
         }
     }
 
-    #[task(binds = SERCOM0, local = [uart_rx], priority = 2)]
-    fn uart_rx(cx: uart_rx::Context) {
-        let rx = cx.local.uart_rx;
-        if let Ok(data) = rx.read() {
-            handle_midi::spawn(data).ok();
-        }
-        rx.clear_status(uart::Status::all());
-        rx.clear_flags(uart::Flags::RXC);
-    }
-
-    #[task(binds = USB, local = [usb_device], priority = 2)]
+    #[task(binds = USB, local = [usb_device, usb_midi], priority = 2)]
     fn usb_interrupt(cx: usb_interrupt::Context) {
-        let usb_dev: &mut UsbDevice<UsbBus> = cx.local.usb_device;
-        usb_dev.poll(&mut []);
+        let usb_device: &mut UsbDevice<UsbBus> = cx.local.usb_device;
+        let usb_midi: &mut usbd_midi::midi_device::MidiClass<_> = cx.local.usb_midi;
+
+        if !usb_device.poll(&mut [usb_midi]) {
+            return;
+        }
+
+        let mut buffer = [0; 64];
+        if let Ok(size) = usb_midi.read(&mut buffer) {
+            let buffer_reader = MidiPacketBufferReader::new(&buffer, size);
+            for packet in buffer_reader.into_iter() {
+                if let Ok(packet) = packet {
+                    handle_midi::spawn(packet.message).ok();
+                }
+            }
+        }
     }
 }
