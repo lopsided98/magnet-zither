@@ -1,6 +1,6 @@
 use num_traits::{cast, PrimInt, Zero};
 
-use crate::dac::{Dac, DacDmaTrigger};
+use crate::dac::Dac;
 use crate::hal::time::{Nanoseconds, U32Ext};
 use crate::string::Driver;
 

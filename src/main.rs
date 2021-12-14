@@ -8,11 +8,9 @@ use rtic::app;
 
 mod const_assert;
 
-mod console;
 mod dac;
 mod pwm_dac;
 mod string;
-mod string_driver;
 
 #[app(device = bsp::pac, dispatchers = [EVSYS, DAC])]
 mod app {
@@ -21,14 +19,13 @@ mod app {
     use hal::gpio::v2 as gpio;
     use hal::prelude::*;
     use hal::rtc;
-    use hal::sercom::v2::Sercom0;
     use hal::sercom::v2::uart;
+    use hal::sercom::v2::Sercom0;
     use hal::typelevel::NoneT;
     use hal::usb::usb_device::bus::UsbBusAllocator;
     use hal::usb::usb_device::device::{UsbDevice, UsbDeviceBuilder, UsbVidPid};
     use hal::usb::UsbBus;
     use panic_halt as _;
-    use paste::paste;
     use seq_macro::seq;
 
     use string::{Controller, DacDriver};
@@ -245,7 +242,7 @@ mod app {
         dma_storage: samd_dma::storage::Storage8 = samd_dma::storage::Storage8::new(),
         dma_resources: DmaResources = DmaResources::new(),
     ])]
-    fn init(mut cx: init::Context) -> (Shared, Local, init::Monotonics) {
+    fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
         let mut peripherals: pac::Peripherals = cx.device;
 
         let mut clocks = GenericClockController::with_internal_32kosc(
@@ -283,8 +280,7 @@ mod app {
 
         let mut uart_rx = {
             let clock = &clocks.sercom0_core(&gclk0).unwrap();
-            let pads = uart::Pads::default()
-                .rx(pins.d0);
+            let pads = uart::Pads::default().rx(pins.d0);
             uart::Config::new(&mut peripherals.PM, peripherals.SERCOM0, pads, clock.freq())
                 .baud(
                     115200.hz(),
@@ -349,15 +345,13 @@ mod app {
         capacity = 8
     )]
     fn update_string(mut cx: update_string::Context, i: u8) {
-        for i in 0..NUM_STRINGS {
-            string_i_lock!(cx, i, |string: &mut string::ControllerImpl<
-                DacDriver<_>,
-            >| {
-                if let Some(t) = string.update() {
-                    update_string::spawn_at(t, i).ok();
-                }
-            });
-        }
+        string_i_lock!(cx, i, |string: &mut string::ControllerImpl<
+            DacDriver<_>,
+        >| {
+            if let Some(t) = string.update() {
+                update_string::spawn_at(t, i).ok();
+            }
+        });
     }
 
     fn msg_to_note(msg: &MidiMessage) -> Option<embedded_midi::Note> {

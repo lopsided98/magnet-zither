@@ -3,10 +3,8 @@ use crate::hal::rtc::{Duration, Instant};
 use crate::hal::time::Nanoseconds;
 
 pub mod dac_driver;
-mod led_driver;
 
 pub use dac_driver::DacDriver;
-pub use led_driver::LedDriver;
 
 pub trait Driver {
     fn set(&mut self, period: Nanoseconds, amplitude: u8, invert: bool);
@@ -101,9 +99,12 @@ impl<D: Driver> Controller for ControllerImpl<D> {
 
     fn off(&mut self, _velocity: u8) -> Option<Instant> {
         if let Some((state, duration)) = match &self.state {
-            State::Attack { velocity } | State::Sustain { velocity } => {
-                Some((State::Release { velocity: *velocity }, self.config.release_time))
-            }
+            State::Attack { velocity } | State::Sustain { velocity } => Some((
+                State::Release {
+                    velocity: *velocity,
+                },
+                self.config.release_time,
+            )),
             _ => None,
         } {
             self.state = state;
