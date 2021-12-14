@@ -3,7 +3,7 @@ use crate::hal::time::{Hertz, Nanoseconds, U32Ext};
 
 use crate::dac::{Dac, DacDmaTrigger};
 use crate::pac;
-use atsamd_hal::pac::{PM, TCC0, TCC1, TCC2};
+use pac::{PM, TCC0, TCC1, TCC2};
 use core::ops::Deref;
 use paste::paste;
 use seq_macro::seq;
@@ -12,7 +12,7 @@ mod reg;
 
 pub struct Channel<TCC, const ID: u8>
 where
-    TCC: Deref<Target = crate::pac::tcc0::RegisterBlock>,
+    TCC: Deref<Target = pac::tcc0::RegisterBlock>,
 {
     reg: reg::RegisterBlock<TCC, ID>,
     sample_period: Nanoseconds,
@@ -20,7 +20,7 @@ where
 
 impl<TCC, const ID: u8> Channel<TCC, ID>
 where
-    TCC: Deref<Target = crate::pac::tcc0::RegisterBlock>,
+    TCC: Deref<Target = pac::tcc0::RegisterBlock>,
 {
     unsafe fn new(driver: &PwmDac<TCC>) -> Self {
         Self {
@@ -33,7 +33,7 @@ where
 impl<TCC, const ID: u8> Dac for Channel<TCC, ID>
 where
     Self: DacDmaTrigger,
-    TCC: Deref<Target = crate::pac::tcc0::RegisterBlock>,
+    TCC: Deref<Target = pac::tcc0::RegisterBlock>,
 {
     type Amplitude = u8;
     const MAX_AMPLITUDE: Self::Amplitude = PwmDac::<TCC>::MAX_AMPLITUDE;
@@ -68,7 +68,7 @@ impl<const ID: u8> DacDmaTrigger for Channel<pac::TCC2, ID> {
 
 pub struct PwmDac<TCC>
 where
-    TCC: Deref<Target = crate::pac::tcc0::RegisterBlock>,
+    TCC: Deref<Target = pac::tcc0::RegisterBlock>,
 {
     tcc: TCC,
     sample_period: Nanoseconds,
@@ -76,7 +76,7 @@ where
 
 impl<TCC> PwmDac<TCC>
 where
-    TCC: Deref<Target = crate::pac::tcc0::RegisterBlock>,
+    TCC: Deref<Target = pac::tcc0::RegisterBlock>,
 {
     const MAX_AMPLITUDE: u8 = 240;
 

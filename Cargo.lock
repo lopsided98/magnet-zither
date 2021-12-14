@@ -226,24 +226,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "err-derive"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcc7f65832b62ed38939f98966824eb6294911c3629b0e9a262bfb80836d9686"
-dependencies = [
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn",
- "synstructure",
-]
-
-[[package]]
 name = "fugit"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e4508138d453a72fc32ff5b12f69ddcf14bac0b020445305ba623755deb9dbd"
+checksum = "a100ebf2aadd97481fce0b1265ea470460578ac5441fd9d624e8170753f51a9f"
 
 [[package]]
 name = "hash32"
@@ -301,12 +287,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
-name = "libm"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7d73b3f436185384286bd8098d17ec07c9a7d2388a6599f824d8502b529702a"
-
-[[package]]
 name = "lock_api"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -320,20 +300,16 @@ name = "magnet-zither"
 version = "0.1.0"
 dependencies = [
  "atsamd-hal",
- "cortex-m",
- "cortex-m-rt",
  "cortex-m-rtic",
- "embedded-hal",
  "embedded-midi",
- "err-derive",
  "heapless",
  "itsybitsy_m0",
- "libm",
  "num-traits",
  "panic-halt",
  "paste",
  "samd-dma",
  "seq-macro",
+ "usbd-midi",
 ]
 
 [[package]]
@@ -540,12 +516,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustversion"
-version = "1.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2cc38e8fa666e2de3c4aba7edeb5ffc5246c1c2ed0e3d17e560aeeba736b23f"
-
-[[package]]
 name = "samd-dma"
 version = "0.3.0"
 dependencies = [
@@ -646,18 +616,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "synstructure"
-version = "0.12.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f36bdaa60a83aca3921b5259d5400cbf5e90fc51931376a9bd4a0eb79aa7210f"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
- "unicode-xid",
-]
-
-[[package]]
 name = "typenum"
 version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -674,6 +632,17 @@ name = "usb-device"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6be90410d4772074ea49525e2e753b65920b94b57eee21a6ef7b6a6fe6296245"
+
+[[package]]
+name = "usbd-midi"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f3140ea7a0704683358e1665800667a264e06a5fcec506bf803d5d7d7e09f4c"
+dependencies = [
+ "embedded-hal",
+ "nb 0.1.3",
+ "usb-device",
+]
 
 [[package]]
 name = "vcell"
