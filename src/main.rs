@@ -18,9 +18,6 @@ mod app {
     use hal::gpio::v2 as gpio;
     use hal::prelude::*;
     use hal::rtc;
-    use hal::sercom::v2::uart;
-    use hal::sercom::v2::Sercom0;
-    use hal::typelevel::NoneT;
     use hal::usb::usb_device::bus::UsbBusAllocator;
     use hal::usb::usb_device::device::{UsbDevice, UsbDeviceBuilder, UsbVidPid};
     use hal::usb::UsbBus;
@@ -195,7 +192,7 @@ mod app {
                         &mut dma_resources.6,
                     ),
                     string::Config {
-                        period: 1437215.ns().into(),
+                        period: 1442793.ns().into(),
                         attack_time: rtc::Duration::millis(200),
                         attack_amplitude: 255,
                         sustain_amplitude: 100,
