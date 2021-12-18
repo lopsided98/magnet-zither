@@ -8,7 +8,9 @@ use rtic::app;
 
 mod const_assert;
 
+mod ac;
 mod dac;
+mod evsys;
 mod pwm_dac;
 mod string;
 
@@ -26,18 +28,19 @@ mod app {
     use usbd_midi::data::midi;
     use usbd_midi::data::usb_midi::midi_packet_reader::MidiPacketBufferReader;
 
-    use string::{Controller, DacDriver};
-
+    use crate::ac;
     use crate::bsp;
+    use crate::evsys;
     use crate::hal;
     use crate::pac;
     use crate::pwm_dac;
     use crate::string;
 
-    // macro_rules! uart_println {
-    //     ($uart:expr, $($arg:tt)*) => {
-    //         $uart.lock(|s| writeln!(s as &mut dyn embedded_hal::serial::Write<_, Error = _>, $($arg)*))
-    //     };
+// macro_rules! uart_println {
+    //     ($uart:expr, $($arg:tt)*) => {{
+    //         use core::fmt::Write;
+    //         $uart.lock(|s| writeln!(s as &mut dyn $crate::hal::ehal::serial::Write<_, Error = _>, $($arg)*))
+    //     }}
     // }
 
     const NUM_STRINGS: u8 = 8;
@@ -72,14 +75,14 @@ mod app {
     );
 
     pub struct Strings(
-        string::ControllerImpl<DacDriver<pwm_dac::Channel<pac::TCC0, 0>>>,
-        string::ControllerImpl<DacDriver<pwm_dac::Channel<pac::TCC0, 1>>>,
-        string::ControllerImpl<DacDriver<pwm_dac::Channel<pac::TCC0, 2>>>,
-        string::ControllerImpl<DacDriver<pwm_dac::Channel<pac::TCC0, 3>>>,
-        string::ControllerImpl<DacDriver<pwm_dac::Channel<pac::TCC1, 0>>>,
-        string::ControllerImpl<DacDriver<pwm_dac::Channel<pac::TCC1, 1>>>,
-        string::ControllerImpl<DacDriver<pwm_dac::Channel<pac::TCC2, 0>>>,
-        string::ControllerImpl<DacDriver<pwm_dac::Channel<pac::TCC2, 1>>>,
+        string::Controller<string::DacDriver<pwm_dac::Channel<pac::TCC0, 0>>>,
+        string::Controller<string::DacDriver<pwm_dac::Channel<pac::TCC0, 1>>>,
+        string::Controller<string::DacDriver<pwm_dac::Channel<pac::TCC0, 2>>>,
+        string::Controller<string::DacDriver<pwm_dac::Channel<pac::TCC0, 3>>>,
+        string::Controller<string::DacDriver<pwm_dac::Channel<pac::TCC1, 0>>>,
+        string::Controller<string::DacDriver<pwm_dac::Channel<pac::TCC1, 1>>>,
+        string::Controller<string::DacDriver<pwm_dac::Channel<pac::TCC2, 0>>>,
+        string::Controller<string::DacDriver<pwm_dac::Channel<pac::TCC2, 1>>>,
     );
 
     impl Strings {
@@ -87,6 +90,7 @@ mod app {
             dac_tcc0: pwm_dac::PwmDac<pac::TCC0>,
             dac_tcc1: pwm_dac::PwmDac<pac::TCC1>,
             dac_tcc2: pwm_dac::PwmDac<pac::TCC2>,
+            freq_meter: ac::FrequencyMeter<pac::TC3>,
             dma: &mut samd_dma::DMAController<samd_dma::storage::Storage8>,
             dma_resources: &'static mut DmaResources,
         ) -> Self {
@@ -95,124 +99,127 @@ mod app {
             let dac_tcc2 = dac_tcc2.split();
 
             Self(
-                string::ControllerImpl::new(
+                string::Controller::new(
                     string::DacDriver::new(
                         dac_tcc0.0,
                         dma.take_channel::<samd_dma::consts::CH0>().unwrap(),
                         &mut dma_resources.0,
                     ),
+                    None,
                     string::Config {
                         period: 2527359.ns().into(),
                         attack_time: rtc::Duration::millis(200),
-                        attack_amplitude: 255,
                         sustain_amplitude: 100,
-                        release_time: rtc::Duration::millis(20),
                         release_amplitude: 0,
+                        ..string::Config::default()
                     },
                 ),
-                string::ControllerImpl::new(
+                string::Controller::new(
                     string::DacDriver::new(
                         dac_tcc0.1,
                         dma.take_channel::<samd_dma::consts::CH1>().unwrap(),
                         &mut dma_resources.1,
                     ),
+                    Some(freq_meter),
                     string::Config {
                         period: 2251644.ns().into(),
                         attack_time: rtc::Duration::millis(100),
-                        attack_amplitude: 255,
-                        sustain_amplitude: 100,
-                        release_time: rtc::Duration::millis(50),
+                        sustain_amplitude: 255,
                         release_amplitude: 100,
+                        ..string::Config::default()
                     },
                 ),
-                string::ControllerImpl::new(
+                string::Controller::new(
                     string::DacDriver::new(
                         dac_tcc0.2,
                         dma.take_channel::<samd_dma::consts::CH2>().unwrap(),
                         &mut dma_resources.2,
                     ),
+                    None,
                     string::Config {
                         period: 2024619.ns().into(),
                         attack_time: rtc::Duration::millis(200),
-                        attack_amplitude: 255,
                         sustain_amplitude: 100,
-                        release_time: rtc::Duration::millis(1000),
                         release_amplitude: 0,
+                        ..string::Config::default()
                     },
                 ),
-                string::ControllerImpl::new(
+                string::Controller::new(
                     string::DacDriver::new(
                         dac_tcc0.3,
                         dma.take_channel::<samd_dma::consts::CH3>().unwrap(),
                         &mut dma_resources.3,
                     ),
+                    None,
                     string::Config {
                         period: 1924965.ns().into(),
                         attack_time: rtc::Duration::millis(200),
-                        attack_amplitude: 255,
                         sustain_amplitude: 100,
-                        release_time: rtc::Duration::millis(1000),
                         release_amplitude: 0,
+                        ..string::Config::default()
                     },
                 ),
-                string::ControllerImpl::new(
+                string::Controller::new(
                     string::DacDriver::new(
                         dac_tcc1.0,
                         dma.take_channel::<samd_dma::consts::CH4>().unwrap(),
                         &mut dma_resources.4,
                     ),
+                    None,
                     string::Config {
                         period: 1696439.ns().into(),
                         attack_time: rtc::Duration::millis(200),
-                        attack_amplitude: 255,
                         sustain_amplitude: 100,
-                        release_time: rtc::Duration::millis(1000),
                         release_amplitude: 0,
+                        ..string::Config::default()
                     },
                 ),
-                string::ControllerImpl::new(
+                string::Controller::new(
                     string::DacDriver::new(
                         dac_tcc1.1,
                         dma.take_channel::<samd_dma::consts::CH5>().unwrap(),
                         &mut dma_resources.5,
                     ),
+                    None,
                     string::Config {
                         period: 1528888.ns().into(),
                         attack_time: rtc::Duration::millis(200),
                         attack_amplitude: 255,
                         sustain_amplitude: 100,
-                        release_time: rtc::Duration::millis(1000),
                         release_amplitude: 0,
+                        ..string::Config::default()
                     },
                 ),
-                string::ControllerImpl::new(
+                string::Controller::new(
                     string::DacDriver::new(
                         dac_tcc2.0,
                         dma.take_channel::<samd_dma::consts::CH6>().unwrap(),
                         &mut dma_resources.6,
                     ),
+                    None,
                     string::Config {
                         period: 1442793.ns().into(),
                         attack_time: rtc::Duration::millis(200),
                         attack_amplitude: 255,
                         sustain_amplitude: 100,
-                        release_time: rtc::Duration::millis(1000),
                         release_amplitude: 0,
+                        ..string::Config::default()
                     },
                 ),
-                string::ControllerImpl::new(
+                string::Controller::new(
                     string::DacDriver::new(
                         dac_tcc2.1,
                         dma.take_channel::<samd_dma::consts::CH7>().unwrap(),
                         &mut dma_resources.7,
                     ),
+                    None,
                     string::Config {
                         period: 1276699.ns().into(),
                         attack_time: rtc::Duration::millis(200),
                         attack_amplitude: 255,
                         sustain_amplitude: 100,
-                        release_time: rtc::Duration::millis(1000),
                         release_amplitude: 0,
+                        ..string::Config::default()
                     },
                 ),
             )
@@ -221,6 +228,7 @@ mod app {
 
     #[shared]
     struct Shared {
+        // uart_tx: uart::Uart<uart::Config<uart::Pads<Sercom0, NoneT, bsp::UartTx>>, uart::Tx>,
         strings: Strings,
     }
 
@@ -254,6 +262,17 @@ mod app {
         let rtc = rtc::Rtc::count32_mode(peripherals.RTC, rtc_clock.freq(), &mut peripherals.PM);
 
         let pins = bsp::Pins::new(peripherals.PORT);
+
+        // let uart_tx = {
+        //     let clock = &clocks.sercom0_core(&gclk0).unwrap();
+        //     let pads = uart::Pads::default().tx(pins.d1);
+        //     uart::Config::new(&peripherals.PM, peripherals.SERCOM0, pads, clock.freq())
+        //         .baud(
+        //             115200.hz(),
+        //             uart::BaudMode::Fractional(uart::Oversampling::Bits16),
+        //         )
+        //         .enable()
+        // };
 
         *cx.local.usb_allocator = Some(bsp::usb_allocator(
             peripherals.USB,
@@ -309,10 +328,31 @@ mod app {
         let _string_6_pin: gpio::Pin<_, gpio::AlternateE> = pins.d11.into_mode();
         let _string_7_pin: gpio::Pin<_, gpio::AlternateE> = pins.d13.into_mode();
 
+        let _ac_pos_pin: gpio::Pin<_, gpio::AlternateB> = pins.a3.into_mode();
+        let _ac_neg_pin: gpio::Pin<_, gpio::AlternateB> = pins.a4.into_mode();
+        let _ac_comp_pin: gpio::Pin<_, gpio::AlternateH> = pins.miso.into_mode();
+
+        let evsys = evsys::EventSystem::new(peripherals.EVSYS, &peripherals.PM).split();
+
+        let _ac = ac::AnalogComparator::new(
+            clocks.ac_ana(&gclk0).unwrap(),
+            clocks.ac_dig(&gclk0).unwrap(),
+            peripherals.AC,
+            &peripherals.PM,
+        );
+
+        let freq =
+            ac::FrequencyMeter::<pac::TC3>::new(&tcc2_tc3_clock, peripherals.TC3, &peripherals.PM);
+
+        let evsys_ac_channel = evsys.0;
+        evsys_ac_channel.user(evsys::User::Tc3);
+        evsys_ac_channel.config(evsys::Path::ASYNCHRONOUS, evsys::EventGenerator::AcComp0);
+
         let strings = Strings::new(
             dac_tcc0,
             dac_tcc1,
             dac_tcc2,
+            freq,
             &mut dma,
             cx.local.dma_resources,
         );
@@ -332,9 +372,7 @@ mod app {
         capacity = 8
     )]
     fn update_string(mut cx: update_string::Context, i: u8) {
-        string_i_lock!(cx, i, |string: &mut string::ControllerImpl<
-            DacDriver<_>,
-        >| {
+        string_i_lock!(cx, i, |string: &mut string::Controller<_>| {
             if let Some(t) = string.update() {
                 update_string::spawn_at(t, i).ok();
             }
@@ -370,9 +408,7 @@ mod app {
     )]
     fn handle_midi(mut cx: handle_midi::Context, msg: midi::message::Message) {
         if let Some(i) = msg_to_note(&msg).and_then(note_to_string) {
-            string_i_lock!(cx, i, |string: &mut string::ControllerImpl<
-                DacDriver<_>,
-            >| {
+            string_i_lock!(cx, i, |string: &mut string::Controller<_>| {
                 if let Some(t) = match msg {
                     midi::message::Message::NoteOn(_, _, velocity) => string.on(velocity.into()),
                     midi::message::Message::NoteOff(_, _, _velocity) => string.off(127),
@@ -395,8 +431,8 @@ mod app {
     ) {
         let buffer = buffer.fill();
 
-        string_i_lock!(cx, string, |string: &mut string::ControllerImpl<
-            DacDriver<_>,
+        string_i_lock!(cx, string, |string: &mut string::Controller<
+            string::DacDriver<_>,
         >| {
             // https://github.com/rust-lang/rust/issues/42574
             let buffer = buffer;
@@ -413,13 +449,20 @@ mod app {
         for i in 0..NUM_STRINGS {
             let mut buffer = None;
 
-            string_i_lock!(cx, i, |string: &mut string::ControllerImpl<
-                DacDriver<_>,
+            string_i_lock!(cx, i, |string: &mut string::Controller<
+                string::DacDriver<_>,
             >| buffer = string.driver_mut().request());
             if let Some(buffer) = buffer {
                 fill_buffer::spawn(i, buffer).ok();
             }
         }
+    }
+
+    #[task(binds = TC3, shared = [strings])]
+    fn freq_interrupt(mut cx: freq_interrupt::Context) {
+        cx.shared
+            .strings
+            .lock(|strings| strings.1.sample_frequency());
     }
 
     #[task(binds = USB, local = [usb_device, usb_midi], priority = 2)]
