@@ -21,9 +21,9 @@ struct ScheduledState {
 }
 
 enum State {
-    Attack { velocity: u8 },
-    Sustain { velocity: u8 },
-    Release { velocity: u8 },
+    Attack { velocity: u8, harmonic: u8 },
+    Sustain { velocity: u8, harmonic: u8 },
+    Release { velocity: u8, harmonic: u8 },
     WaitStabilize,
     SampleFrequency,
     Off,
@@ -60,11 +60,11 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             period: Nanoseconds::from(500.hz()),
-            attack_time: Duration::millis(200),
+            attack_time: Duration::millis(100),
             attack_amplitude: 255,
             sustain_amplitude: 100,
-            release_time: Duration::millis(50),
-            release_amplitude: 100,
+            release_time: Duration::millis(0),
+            release_amplitude: 0,
             stabilize_time: Duration::millis(50),
             sample_time: Duration::millis(500),
         }
@@ -103,20 +103,29 @@ impl<D: Driver> Controller<D> {
 
     fn update_driver(&mut self) {
         let mut invert = false;
-        let amplitude = match self.state.state {
-            State::Attack { velocity } => {
-                Self::apply_velocity(self.config.attack_amplitude, velocity)
-            }
-            State::Sustain { velocity } => {
-                Self::apply_velocity(self.config.sustain_amplitude, velocity)
-            }
-            State::Release { velocity } => {
+        let (amplitude, harmonic) = match self.state.state {
+            State::Attack { velocity, harmonic } => (
+                Self::apply_velocity(self.config.attack_amplitude, velocity),
+                harmonic,
+            ),
+            State::Sustain { velocity, harmonic } => (
+                Self::apply_velocity(self.config.sustain_amplitude, velocity),
+                harmonic,
+            ),
+            State::Release { velocity, harmonic } => {
                 invert = true;
-                Self::apply_velocity(self.config.release_amplitude, velocity)
+                (
+                    Self::apply_velocity(self.config.release_amplitude, velocity),
+                    harmonic,
+                )
             }
-            _ => 0,
+            _ => (0, 1),
         };
-        self.driver.set(self.config.period, amplitude, invert);
+        self.driver.set(
+            (self.config.period.0 / harmonic as u32).ns(),
+            amplitude,
+            invert,
+        );
 
         if let Some(freq_meter) = &self.freq_meter {
             match self.state.state {
@@ -130,12 +139,12 @@ impl<D: Driver> Controller<D> {
         &mut self.driver
     }
 
-    pub fn on(&mut self, velocity: u8) -> Option<Instant> {
+    pub fn on(&mut self, velocity: u8, harmonic: u8) -> Option<Instant> {
         let now = monotonics::now();
 
         match &self.state.state {
             State::Off | State::Release { .. } | State::WaitStabilize | State::SampleFrequency => {
-                Some(State::Attack { velocity }.schedule(now + self.config.attack_time))
+                Some(State::Attack { velocity, harmonic }.schedule(now + self.config.attack_time))
             }
             _ => None,
         }
@@ -150,14 +159,13 @@ impl<D: Driver> Controller<D> {
         let now = monotonics::now();
 
         match &self.state.state {
-            State::Attack { velocity, .. } | State::Sustain { velocity } => {
-                Some(
-                    State::Release {
-                        velocity: *velocity,
-                    }
-                    .schedule(now + self.config.release_time),
-                )
-            }
+            State::Attack { velocity, harmonic } | State::Sustain { velocity, harmonic } => Some(
+                State::Release {
+                    velocity: *velocity,
+                    harmonic: *harmonic,
+                }
+                .schedule(now + self.config.release_time),
+            ),
             _ => None,
         }
         .map(|state| {
@@ -182,14 +190,13 @@ impl<D: Driver> Controller<D> {
         let start = self.state.end.unwrap_or(now);
 
         match &self.state.state {
-            State::Attack { velocity, .. } => {
-                Some(
-                    State::Sustain {
-                        velocity: *velocity,
-                    }
-                    .indefinite(),
-                )
-            }
+            State::Attack { velocity, harmonic } => Some(
+                State::Sustain {
+                    velocity: *velocity,
+                    harmonic: *harmonic,
+                }
+                .indefinite(),
+            ),
             State::Release { .. } if self.freq_meter.is_some() => {
                 Some(State::WaitStabilize.schedule(start + self.config.stabilize_time))
             }

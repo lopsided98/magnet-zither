@@ -36,7 +36,7 @@ mod app {
     use crate::pwm_dac;
     use crate::string;
 
-// macro_rules! uart_println {
+    // macro_rules! uart_println {
     //     ($uart:expr, $($arg:tt)*) => {{
     //         use core::fmt::Write;
     //         $uart.lock(|s| writeln!(s as &mut dyn $crate::hal::ehal::serial::Write<_, Error = _>, $($arg)*))
@@ -344,10 +344,10 @@ mod app {
         shared = [strings],
         capacity = 8
     )]
-    fn update_string(mut cx: update_string::Context, i: u8) {
+    fn update_string(mut cx: update_string::Context, i: u8, harmonic: u8) {
         string_i_lock!(cx, i, |string: &mut string::Controller<_>| {
             if let Some(t) = string.update() {
-                update_string::spawn_at(t, i).ok();
+                update_string::spawn_at(t, i, harmonic).ok();
             }
         });
     }
@@ -360,17 +360,24 @@ mod app {
         }
     }
 
-    fn note_to_string(note: midi::notes::Note) -> Option<u8> {
+    fn note_to_string(note: midi::notes::Note) -> Option<(u8, u8)> {
         use midi::notes::Note::*;
         match note.into() {
-            G4 => Some(0),
-            A4 => Some(1),
-            B4 => Some(2),
-            C5 => Some(3),
-            D5 => Some(4),
-            E5 => Some(5),
-            F5 => Some(6),
-            G5 => Some(7),
+            G4 => Some((0, 1)),
+            A4 => Some((1, 1)),
+            B4 => Some((2, 1)),
+            C5 => Some((3, 1)),
+            D5 => Some((4, 1)),
+            E5 => Some((5, 1)),
+            F5 => Some((6, 1)),
+            G5 => Some((7, 1)),
+            A5 => Some((1, 2)),
+            B5 => Some((2, 2)),
+            C6 => Some((3, 2)),
+            D6 => Some((4, 2)),
+            E6 => Some((5, 2)),
+            F6 => Some((6, 2)),
+            G6 => Some((7, 2)),
             _ => None,
         }
     }
@@ -380,14 +387,16 @@ mod app {
         capacity = 16
     )]
     fn handle_midi(mut cx: handle_midi::Context, msg: midi::message::Message) {
-        if let Some(i) = msg_to_note(&msg).and_then(note_to_string) {
+        if let Some((i, harmonic)) = msg_to_note(&msg).and_then(note_to_string) {
             string_i_lock!(cx, i, |string: &mut string::Controller<_>| {
                 if let Some(t) = match msg {
-                    midi::message::Message::NoteOn(_, _, velocity) => string.on(velocity.into()),
+                    midi::message::Message::NoteOn(_, _, velocity) => {
+                        string.on(velocity.into(), harmonic)
+                    }
                     midi::message::Message::NoteOff(_, _, _velocity) => string.off(127),
                     _ => None,
                 } {
-                    update_string::spawn_at(t, i).ok();
+                    update_string::spawn_at(t, i, harmonic).ok();
                 }
             });
         }
