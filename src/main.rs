@@ -108,9 +108,6 @@ mod app {
                     None,
                     string::Config {
                         period: 2527359.ns().into(),
-                        attack_time: rtc::Duration::millis(200),
-                        sustain_amplitude: 100,
-                        release_amplitude: 0,
                         ..string::Config::default()
                     },
                 ),
@@ -123,9 +120,6 @@ mod app {
                     None,
                     string::Config {
                         period: 2251644.ns().into(),
-                        attack_time: rtc::Duration::millis(100),
-                        sustain_amplitude: 255,
-                        release_amplitude: 100,
                         ..string::Config::default()
                     },
                 ),
@@ -138,9 +132,6 @@ mod app {
                     None,
                     string::Config {
                         period: 2024619.ns().into(),
-                        attack_time: rtc::Duration::millis(200),
-                        sustain_amplitude: 100,
-                        release_amplitude: 0,
                         ..string::Config::default()
                     },
                 ),
@@ -153,9 +144,6 @@ mod app {
                     None,
                     string::Config {
                         period: 1924965.ns().into(),
-                        attack_time: rtc::Duration::millis(200),
-                        sustain_amplitude: 100,
-                        release_amplitude: 0,
                         ..string::Config::default()
                     },
                 ),
@@ -168,9 +156,6 @@ mod app {
                     None,
                     string::Config {
                         period: 1696439.ns().into(),
-                        attack_time: rtc::Duration::millis(200),
-                        sustain_amplitude: 100,
-                        release_amplitude: 0,
                         ..string::Config::default()
                     },
                 ),
@@ -183,10 +168,6 @@ mod app {
                     None,
                     string::Config {
                         period: 1528888.ns().into(),
-                        attack_time: rtc::Duration::millis(200),
-                        attack_amplitude: 255,
-                        sustain_amplitude: 100,
-                        release_amplitude: 0,
                         ..string::Config::default()
                     },
                 ),
@@ -199,10 +180,6 @@ mod app {
                     None,
                     string::Config {
                         period: 1442793.ns().into(),
-                        attack_time: rtc::Duration::millis(200),
-                        attack_amplitude: 255,
-                        sustain_amplitude: 100,
-                        release_amplitude: 0,
                         ..string::Config::default()
                     },
                 ),
@@ -215,10 +192,6 @@ mod app {
                     None,
                     string::Config {
                         period: 1276699.ns().into(),
-                        attack_time: rtc::Duration::millis(200),
-                        attack_amplitude: 255,
-                        sustain_amplitude: 100,
-                        release_amplitude: 0,
                         ..string::Config::default()
                     },
                 ),
