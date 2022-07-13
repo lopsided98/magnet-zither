@@ -90,7 +90,7 @@ mod app {
             dac_tcc0: pwm_dac::PwmDac<pac::TCC0>,
             dac_tcc1: pwm_dac::PwmDac<pac::TCC1>,
             dac_tcc2: pwm_dac::PwmDac<pac::TCC2>,
-            freq_meter: ac::FrequencyMeter<pac::TC3>,
+            _freq_meter: ac::FrequencyMeter<pac::TC3>,
             dma: &mut samd_dma::DMAController<samd_dma::storage::Storage8>,
             dma_resources: &'static mut DmaResources,
         ) -> Self {
@@ -120,7 +120,7 @@ mod app {
                         dma.take_channel::<samd_dma::consts::CH1>().unwrap(),
                         &mut dma_resources.1,
                     ),
-                    Some(freq_meter),
+                    None,
                     string::Config {
                         period: 2251644.ns().into(),
                         attack_time: rtc::Duration::millis(100),
