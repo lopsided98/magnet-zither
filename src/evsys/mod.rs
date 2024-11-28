@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use pac::{EVSYS, PM};
 use seq_macro::seq;
 

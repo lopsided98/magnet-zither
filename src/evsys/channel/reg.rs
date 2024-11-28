@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use crate::const_assert::const_assert;
 use pac::evsys;
 use pac::evsys::channel;

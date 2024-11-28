@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use hal::rtc::{Duration, Instant};
 use hal::time::{Nanoseconds, U32Ext};
 use num_rational::Ratio;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use crate::hal::clock;
 use crate::hal::time::{Hertz, Nanoseconds, U32Ext};
 
